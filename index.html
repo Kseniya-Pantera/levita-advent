@@ -395,8 +395,13 @@
   function plural(n, f) { var a = Math.abs(n) % 100, b = a % 10; if (a > 10 && a < 20) return f[2]; if (b > 1 && b < 5) return f[1]; if (b === 1) return f[0]; return f[2]; }
   var DAYS = ['день', 'дня', 'дней'], HOURS = ['час', 'часа', 'часов'], MINS = ['минута', 'минуты', 'минут'];
 
+  // Демо для команды: ?demo=2026-12-05 показывает страницу такой, какой она будет в этот день (10:00 МСК)
+  var demoMatch = /(?:^|[?&])demo=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(location.search);
+  var demoNow = demoMatch ? new Date(demoMatch[1] + 'T10:00:00+03:00') : null;
+  if (demoNow && isNaN(demoNow.getTime())) demoNow = null;
+
   function getState() {
-    var now = new Date(), opened = 0;
+    var now = demoNow ? new Date(demoNow.getTime()) : new Date(), opened = 0;
     for (var n = 1; n <= 31; n++) if (openAt(n) <= now) opened = n;
     return { now: now, early: now < new Date(CFG.earlyUntil), opened: opened, started: opened > 0 };
   }
@@ -664,6 +669,9 @@
   }
   apply();
   setInterval(apply, 30000);
+  if (demoNow) window.addEventListener('load', function () {
+    toast('Демо: так страница будет выглядеть ' + demoNow.getDate() + ' ' + ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][demoNow.getMonth()]);
+  });
 
   /* Внутри Telegram (мини-приложение): развернуть на весь экран, шапка в цвет страницы */
   window.addEventListener('load', function () {
