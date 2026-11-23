@@ -377,6 +377,7 @@
     year: 2026, month: 12, openTime: '07:00', // окно N открывается N декабря в 7:00 по Москве
     product: 'Адвент-календарь LEVITA 31 окно', // название товара в корзине Тильды
     orderHref: 'https://t.me/levita_adventbot?start=buy', // покупка в боте; пусто = корзина Тильды (#order:...)
+    botUrl: 'https://t.me/levita_adventbot',
     preview: false,   // подставляет build.py: true - превью, false - опубликованная страница
     rulesUrl: '',   // ссылка на правила розыгрыша; пока пусто, на опубликованной странице розыгрыш скрыт
     metrikaId: 105183580, metrikaGoal: 'advent_cta'
@@ -385,6 +386,8 @@
   var NBSP = ' ';
   var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var giveawayOn = !!CFG.rulesUrl || CFG.preview;
+  var paidView = /(?:^|[?&])paid=1(?:&|$)/.test(location.search); // открыто из бота у оплатившей
+  function tgApp() { var tg = window.Telegram && window.Telegram.WebApp; return tg && tg.initData ? tg : null; }
   var each = function (sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); };
 
   function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP) + NBSP + '₽'; }
@@ -581,6 +584,7 @@
   var wins = houseEl ? Array.prototype.slice.call(houseEl.querySelectorAll('.adv-win')) : [];
 
   function defaultCaption(st) {
+    if (st.started && tgApp()) return 'Нажмите на открытое окно - тренировка придёт в чат с ботом';
     if (!st.started) return 'Нажмите на окно, чтобы заглянуть и узнать, когда оно откроется';
     if (st.opened >= 31) return 'Все окна открыты. С наступающим!';
     return 'Сегодня открылось окно №' + st.opened + '. Нажмите на любое окно';
@@ -604,7 +608,14 @@
   if (houseEl) {
     houseEl.addEventListener('click', function (e) {
       var g = e.target.closest ? e.target.closest('.adv-win') : null;
-      if (g) { select(+g.getAttribute('data-n')); peek(g); }
+      if (!g) return;
+      var n = +g.getAttribute('data-n'), tg = tgApp();
+      select(n);
+      peek(g);
+      if (tg && n <= getState().opened) { // открытое окно внутри Telegram: бот пришлёт тренировку в чат
+        tg.openTelegramLink(CFG.botUrl + '?start=w' + n);
+        setTimeout(function () { try { tg.close(); } catch (err) {} }, 400);
+      }
     });
     houseEl.addEventListener('keydown', function (e) {
       var g = e.target;
@@ -663,6 +674,9 @@
 
   /* ===== Розыгрыш: без правил на опубликованной странице не показываем ===== */
   each('[data-adv-giveaway]', function (el) { el.hidden = !giveawayOn; });
+  if (paidView) { // оплатившей не показываем покупку
+    each('[data-adv-order], [data-adv-sticky], #adv-ticket', function (el) { el.hidden = true; });
+  }
   each('[data-adv-rules]', function (a) {
     if (CFG.rulesUrl) { a.href = CFG.rulesUrl; a.target = '_blank'; a.rel = 'noopener'; }
     else a.addEventListener('click', function (e) { e.preventDefault(); toast('Сюда встанет ссылка на страницу с правилами розыгрыша'); });
